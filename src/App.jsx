@@ -7,6 +7,7 @@ import Drivers from './pages/Drivers'
 import Buses from './pages/Buses'
 import Maintenance from './pages/Maintenance'
 import Users from './pages/Users'
+import Cost from './pages/Cost'
 import StubPage from './pages/StubPage'
 
 function ProtectedRoute({ children }) {
@@ -28,7 +29,7 @@ function AppRoutes() {
         <Route path="driver" element={<Drivers />} />
         <Route path="bus" element={<Buses />} />
         <Route path="maintenance" element={<Maintenance />} />
-        <Route path="cost" element={<StubPage page="cost" />} />
+        <Route path="cost" element={<Cost />} />
         <Route path="fuel" element={<StubPage page="fuel" />} />
         <Route path="training" element={<StubPage page="training" />} />
         <Route path="license" element={<StubPage page="license" />} />

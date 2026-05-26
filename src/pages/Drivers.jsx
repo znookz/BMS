@@ -7,10 +7,17 @@ import { useDrivers, fetchDriverDetail } from '../hooks/useDrivers'
 
 const DEFAULT_ADD = { name: '', idCard: '', phone: '', factory: 'บางปะอิน', route: ROUTES[0], shift: '0', licenseType: 'B2', licenseExp: '', joined: '' }
 
+function fmtIdCard(raw) {
+  const s = (raw || '').replace(/\D/g, '')
+  if (s.length !== 13) return raw
+  return `${s[0]}-${s.slice(1,5)}-${s.slice(5,10)}-${s.slice(10,12)}-${s[12]}`
+}
+
 function validateAdd(f) {
   const e = {}
   if (!f.name.trim()) e.name = 'กรอกชื่อ'
   if (!f.idCard.trim()) e.idCard = 'กรอกเลขบัตรประชาชน'
+  else if (f.idCard.length !== 11) e.idCard = 'ต้องมี 11 หลัก'
   if (!f.phone.trim()) e.phone = 'กรอกเบอร์โทร'
   if (!f.licenseExp) e.licenseExp = 'กรอกวันหมดอายุ'
   if (!f.joined) e.joined = 'กรอกวันเริ่มงาน'
@@ -19,7 +26,7 @@ function validateAdd(f) {
 
 export default function Drivers() {
   const { onToast } = useOutletContext() || {}
-  const { drivers, loading, error, add, update } = useDrivers()
+  const { drivers, loading, error, add, update, remove } = useDrivers()
 
   const [search, setSearch] = useState('')
   const [factory, setFactory] = useState('all')
@@ -32,16 +39,19 @@ export default function Drivers() {
   const pageSize = 10
 
   const [selected, setSelected] = useState(null)
+  const [isView, setIsView] = useState(false)
   const [editForm, setEditForm] = useState(null)
   const [tab, setTab] = useState('info')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const [addOpen, setAddOpen] = useState(false)
   const [addForm, setAddForm] = useState(DEFAULT_ADD)
   const [addErrors, setAddErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
-  const openDetail = (d) => {
+  const openDetail = (d, view = false) => {
     setSelected(d)
+    setIsView(view)
     setEditForm({
       name: d.name, idCard: d.id_card, phone: d.phone || '',
       factory: d.factory, route: d.route || ROUTES[0], shift: String(d.shift ?? 0),
@@ -49,6 +59,16 @@ export default function Drivers() {
       joined: d.joined || '', status: d.status,
     })
     setTab('info')
+  }
+
+  const confirmDelete = async () => {
+    try {
+      await remove(deleteTarget.id)
+      onToast?.({ msg: 'ลบ ' + deleteTarget.name + ' สำเร็จ', kind: 'success' })
+      setDeleteTarget(null)
+    } catch (e) {
+      onToast?.({ msg: 'เกิดข้อผิดพลาด: ' + e.message, kind: 'error' })
+    }
   }
 
   const handleSave = async () => {
@@ -191,18 +211,21 @@ export default function Drivers() {
                       </div>
                     </div>
                   </td>
-                  <td className="mono text-muted">{d.id_card}</td>
+                  <td className="mono text-muted">{fmtIdCard(d.id_card)}</td>
                   <td>{d.factory}</td>
                   <td>{d.route}</td>
                   <td className="text-muted">{SHIFTS[d.shift]?.split(' ')[0]}</td>
                   <td><StatusBadge status={d.status} /></td>
                   <td onClick={e => e.stopPropagation()}>
                     <div className="tbl-actions">
-                      <button className="icon-btn" title="ดู" onClick={() => openDetail(d)}>
+                      <button className="icon-btn" title="ดู" onClick={() => openDetail(d, true)}>
                         <Icon name="eye" size={15} />
                       </button>
-                      <button className="icon-btn" title="แก้ไข" onClick={() => openDetail(d)}>
+                      <button className="icon-btn" title="แก้ไข" onClick={() => openDetail(d, false)}>
                         <Icon name="edit" size={15} />
+                      </button>
+                      <button className="icon-btn" title="ลบ" style={{ color: 'var(--danger)' }} onClick={() => setDeleteTarget(d)}>
+                        <Icon name="trash" size={15} />
                       </button>
                     </div>
                   </td>
@@ -227,9 +250,11 @@ export default function Drivers() {
         footer={
           <>
             <button className="btn" onClick={() => setSelected(null)}>ปิด</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              <Icon name="check" size={15} /> {saving ? 'กำลังบันทึก...' : 'บันทึก'}
-            </button>
+            {!isView && (
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                <Icon name="check" size={15} /> {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+              </button>
+            )}
           </>
         }
       >
@@ -237,6 +262,23 @@ export default function Drivers() {
           <DriverDetail driver={selected} tab={tab} setTab={setTab} editForm={editForm} setEditForm={setEditForm} />
         )}
       </Drawer>
+
+      {/* Delete confirmation */}
+      {deleteTarget && (
+        <div className="modal-scrim" onClick={() => setDeleteTarget(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div className="modal-ico" style={{ background: 'var(--danger-50)', color: 'var(--danger)' }}>
+              <Icon name="trash" size={26} />
+            </div>
+            <h3 className="modal-title">ยืนยันการลบ</h3>
+            <p className="modal-text">ต้องการลบพนักงานขับรถ <strong>{deleteTarget.name}</strong> ออกจากระบบหรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้</p>
+            <div className="flex gap-8" style={{ justifyContent: 'center' }}>
+              <button className="btn" onClick={() => setDeleteTarget(null)}>ยกเลิก</button>
+              <button className="btn btn-danger" onClick={confirmDelete}>ลบพนักงาน</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Drawer */}
       <Drawer
@@ -422,7 +464,13 @@ function AddDriverForm({ form, setForm, errors }) {
       <div className="field-row">
         <div className="field">
           <label>เลขบัตรประชาชน *</label>
-          <input value={form.idCard} onChange={e => set('idCard', e.target.value)} className={errors.idCard ? 'input-error' : ''} placeholder="1-1234-56789-01-2" />
+          <input
+            value={form.idCard}
+            onChange={e => set('idCard', e.target.value.replace(/\D/g, '').slice(0, 11))}
+            className={errors.idCard ? 'input-error' : ''}
+            placeholder="12345678901"
+            inputMode="numeric"
+          />
           {errors.idCard && <div className="field-err">{errors.idCard}</div>}
         </div>
         <div className="field">
