@@ -2,26 +2,89 @@ import { useState, useMemo, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Icon from '../components/Icon'
 import { StatusBadge, Avatar, Drawer, Pagination } from '../components/ui'
-import { DRIVERS, FACTORIES, ROUTES, SHIFTS, initials } from '../lib/mockData'
+import { FACTORIES, ROUTES, SHIFTS, initials } from '../lib/mockData'
+import { useDrivers, fetchDriverDetail } from '../hooks/useDrivers'
+
+const DEFAULT_ADD = { name: '', idCard: '', phone: '', factory: 'บางปะอิน', route: ROUTES[0], shift: '0', licenseType: 'B2', licenseExp: '', joined: '' }
+
+function validateAdd(f) {
+  const e = {}
+  if (!f.name.trim()) e.name = 'กรอกชื่อ'
+  if (!f.idCard.trim()) e.idCard = 'กรอกเลขบัตรประชาชน'
+  if (!f.phone.trim()) e.phone = 'กรอกเบอร์โทร'
+  if (!f.licenseExp) e.licenseExp = 'กรอกวันหมดอายุ'
+  if (!f.joined) e.joined = 'กรอกวันเริ่มงาน'
+  return e
+}
 
 export default function Drivers() {
   const { onToast } = useOutletContext() || {}
+  const { drivers, loading, error, add, update } = useDrivers()
+
   const [search, setSearch] = useState('')
   const [factory, setFactory] = useState('all')
   const [route, setRoute] = useState('all')
   const [shift, setShift] = useState('all')
   const [status, setStatus] = useState('all')
-  const [sortKey, setSortKey] = useState('id')
+  const [sortKey, setSortKey] = useState('code')
   const [sortDir, setSortDir] = useState('asc')
   const [page, setPage] = useState(1)
   const pageSize = 10
+
   const [selected, setSelected] = useState(null)
+  const [editForm, setEditForm] = useState(null)
   const [tab, setTab] = useState('info')
+
   const [addOpen, setAddOpen] = useState(false)
+  const [addForm, setAddForm] = useState(DEFAULT_ADD)
+  const [addErrors, setAddErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  const openDetail = (d) => {
+    setSelected(d)
+    setEditForm({
+      name: d.name, idCard: d.id_card, phone: d.phone || '',
+      factory: d.factory, route: d.route || ROUTES[0], shift: String(d.shift ?? 0),
+      licenseType: d.license_type || 'B2', licenseExp: d.license_exp || '',
+      joined: d.joined || '', status: d.status,
+    })
+    setTab('info')
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await update(selected.id, editForm)
+      onToast?.({ msg: 'บันทึกข้อมูล ' + editForm.name + ' สำเร็จ', kind: 'success' })
+      setSelected(null)
+    } catch (e) {
+      onToast?.({ msg: 'เกิดข้อผิดพลาด: ' + e.message, kind: 'error' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAdd = async () => {
+    const e = validateAdd(addForm)
+    setAddErrors(e)
+    if (Object.keys(e).length) return
+    setSaving(true)
+    try {
+      await add(addForm)
+      onToast?.({ msg: 'เพิ่มพนักงานขับรถ ' + addForm.name + ' สำเร็จ', kind: 'success' })
+      setAddOpen(false)
+      setAddForm(DEFAULT_ADD)
+      setAddErrors({})
+    } catch (e) {
+      onToast?.({ msg: 'เกิดข้อผิดพลาด: ' + e.message, kind: 'error' })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const filtered = useMemo(() => {
-    let rows = DRIVERS.filter(d => {
-      if (search && !(d.name.includes(search) || d.id.toLowerCase().includes(search.toLowerCase()) || d.phone.includes(search))) return false
+    let rows = drivers.filter(d => {
+      if (search && !(d.name.includes(search) || d.code.toLowerCase().includes(search.toLowerCase()) || (d.phone || '').includes(search))) return false
       if (factory !== 'all' && d.factory !== factory) return false
       if (route   !== 'all' && d.route   !== route)   return false
       if (shift   !== 'all' && String(d.shift) !== shift) return false
@@ -35,7 +98,7 @@ export default function Drivers() {
       return (av < bv ? -1 : av > bv ? 1 : 0) * (sortDir === 'asc' ? 1 : -1)
     })
     return rows
-  }, [search, factory, route, shift, status, sortKey, sortDir])
+  }, [drivers, search, factory, route, shift, status, sortKey, sortDir])
 
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize)
   useEffect(() => { setPage(1) }, [search, factory, route, shift, status])
@@ -44,24 +107,25 @@ export default function Drivers() {
     if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(k); setSortDir('asc') }
   }
-
   const Th = ({ k, children }) => (
     <th className={'sortable ' + (sortKey === k ? 'sorted' : '')} onClick={() => toggleSort(k)}>
-      {children}
-      <span className="sort-ind">{sortKey === k ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+      {children}<span className="sort-ind">{sortKey === k ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
     </th>
   )
+
+  const active = drivers.filter(d => d.status === 'active').length
+  const inactive = drivers.filter(d => d.status === 'inactive').length
 
   return (
     <div>
       <div className="page-header">
         <div>
           <h2>พนักงานขับรถ</h2>
-          <div className="sub">รวม {DRIVERS.length} คน • ใช้งาน {DRIVERS.filter(d => d.status === 'active').length} คน • ไม่ใช้งาน {DRIVERS.filter(d => d.status === 'inactive').length} คน</div>
+          <div className="sub">รวม {drivers.length} คน • ใช้งาน {active} คน • ไม่ใช้งาน {inactive} คน</div>
         </div>
         <div className="flex gap-8">
           <button className="btn"><Icon name="download" size={15} /> Export</button>
-          <button className="btn btn-primary" onClick={() => setAddOpen(true)}>
+          <button className="btn btn-primary" onClick={() => { setAddForm(DEFAULT_ADD); setAddErrors({}); setAddOpen(true) }}>
             <Icon name="plus" size={15} /> เพิ่มพนักงานขับรถ
           </button>
         </div>
@@ -98,7 +162,7 @@ export default function Drivers() {
           <table className="tbl">
             <thead>
               <tr>
-                <Th k="id">รหัส</Th>
+                <Th k="code">รหัส</Th>
                 <Th k="name">ชื่อ — สกุล</Th>
                 <th>เลขบัตรประชาชน</th>
                 <Th k="factory">โรงงาน</Th>
@@ -109,9 +173,15 @@ export default function Drivers() {
               </tr>
             </thead>
             <tbody>
-              {pageRows.map(d => (
-                <tr key={d.id} className="row-click" onClick={() => { setSelected(d); setTab('info') }}>
-                  <td className="mono tbl-cell-strong">{d.id}</td>
+              {loading && (
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+              )}
+              {error && (
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)' }}>{error}</td></tr>
+              )}
+              {!loading && !error && pageRows.map(d => (
+                <tr key={d.id} className="row-click" onClick={() => openDetail(d)}>
+                  <td className="mono tbl-cell-strong">{d.code}</td>
                   <td>
                     <div className="user-cell">
                       <Avatar name={d.name} />
@@ -121,27 +191,24 @@ export default function Drivers() {
                       </div>
                     </div>
                   </td>
-                  <td className="mono text-muted">{d.idCard}</td>
+                  <td className="mono text-muted">{d.id_card}</td>
                   <td>{d.factory}</td>
                   <td>{d.route}</td>
-                  <td className="text-muted">{SHIFTS[d.shift].split(' ')[0]}</td>
+                  <td className="text-muted">{SHIFTS[d.shift]?.split(' ')[0]}</td>
                   <td><StatusBadge status={d.status} /></td>
                   <td onClick={e => e.stopPropagation()}>
                     <div className="tbl-actions">
-                      <button className="icon-btn" title="ดู" onClick={() => { setSelected(d); setTab('info') }}>
+                      <button className="icon-btn" title="ดู" onClick={() => openDetail(d)}>
                         <Icon name="eye" size={15} />
                       </button>
-                      <button className="icon-btn" title="แก้ไข" onClick={() => onToast?.({ msg: 'เปิดแก้ไข ' + d.name, kind: 'success' })}>
+                      <button className="icon-btn" title="แก้ไข" onClick={() => openDetail(d)}>
                         <Icon name="edit" size={15} />
-                      </button>
-                      <button className="icon-btn" title="เพิ่มเติม">
-                        <Icon name="moreV" size={15} />
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {pageRows.length === 0 && (
+              {!loading && !error && pageRows.length === 0 && (
                 <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                   ไม่พบข้อมูลตามเงื่อนไขที่เลือก
                 </td></tr>
@@ -152,6 +219,7 @@ export default function Drivers() {
         <Pagination page={page} pageSize={pageSize} total={filtered.length} onChange={setPage} />
       </div>
 
+      {/* Detail / Edit Drawer */}
       <Drawer
         open={!!selected}
         title={selected ? `พนักงานขับรถ • ${selected.name}` : ''}
@@ -159,15 +227,18 @@ export default function Drivers() {
         footer={
           <>
             <button className="btn" onClick={() => setSelected(null)}>ปิด</button>
-            <button className="btn btn-primary" onClick={() => { onToast?.({ msg: 'บันทึกข้อมูล ' + selected?.name, kind: 'success' }); setSelected(null) }}>
-              <Icon name="check" size={15} /> บันทึก
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              <Icon name="check" size={15} /> {saving ? 'กำลังบันทึก...' : 'บันทึก'}
             </button>
           </>
         }
       >
-        {selected && <DriverDetail driver={selected} tab={tab} setTab={setTab} />}
+        {selected && editForm && (
+          <DriverDetail driver={selected} tab={tab} setTab={setTab} editForm={editForm} setEditForm={setEditForm} />
+        )}
       </Drawer>
 
+      {/* Add Drawer */}
       <Drawer
         open={addOpen}
         title="เพิ่มพนักงานขับรถใหม่"
@@ -175,19 +246,36 @@ export default function Drivers() {
         footer={
           <>
             <button className="btn" onClick={() => setAddOpen(false)}>ยกเลิก</button>
-            <button className="btn btn-primary" onClick={() => { onToast?.({ msg: 'เพิ่มพนักงานขับรถสำเร็จ', kind: 'success' }); setAddOpen(false) }}>
-              <Icon name="check" size={15} /> เพิ่มข้อมูล
+            <button className="btn btn-primary" onClick={handleAdd} disabled={saving}>
+              <Icon name="check" size={15} /> {saving ? 'กำลังบันทึก...' : 'เพิ่มข้อมูล'}
             </button>
           </>
         }
       >
-        <AddDriverForm />
+        <AddDriverForm form={addForm} setForm={setAddForm} errors={addErrors} />
       </Drawer>
     </div>
   )
 }
 
-function DriverDetail({ driver, tab, setTab }) {
+function DriverDetail({ driver, tab, setTab, editForm, setEditForm }) {
+  const [healthChecks, setHealthChecks] = useState([])
+  const [trainingRecords, setTrainingRecords] = useState([])
+  const [detailLoading, setDetailLoading] = useState(false)
+
+  useEffect(() => {
+    if (tab === 'health' || tab === 'training') {
+      setDetailLoading(true)
+      fetchDriverDetail(driver.id).then(({ healthChecks, trainingRecords }) => {
+        setHealthChecks(healthChecks)
+        setTrainingRecords(trainingRecords)
+        setDetailLoading(false)
+      })
+    }
+  }, [driver.id, tab])
+
+  const set = (k, v) => setEditForm(f => ({ ...f, [k]: v }))
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 18, borderBottom: '1px solid var(--border)', marginBottom: 18 }}>
@@ -196,10 +284,10 @@ function DriverDetail({ driver, tab, setTab }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-strong)' }}>{driver.name}</div>
-          <div className="text-muted" style={{ fontSize: 12.5 }}>{driver.id} • {driver.phone}</div>
+          <div className="text-muted" style={{ fontSize: 12.5 }}>{driver.code} • {driver.phone}</div>
           <div className="mt-4 flex gap-8">
             <StatusBadge status={driver.status} />
-            <span className="badge badge-navy">ใบขับขี่ {driver.license}</span>
+            <span className="badge badge-navy">ใบขับขี่ {driver.license_type}</span>
           </div>
         </div>
       </div>
@@ -210,66 +298,80 @@ function DriverDetail({ driver, tab, setTab }) {
         <button className={tab === 'training' ? 'on' : ''} onClick={() => setTab('training')}>ประวัติการอบรม</button>
       </div>
 
-      {tab === 'info' && (
+      {tab === 'info' && editForm && (
         <>
           <div className="field-row">
-            <div className="field"><label>ชื่อ — สกุล</label><input defaultValue={driver.name} /></div>
-            <div className="field"><label>รหัสพนักงาน</label><input defaultValue={driver.id} disabled style={{ background: 'var(--surface-2)' }} /></div>
+            <div className="field"><label>ชื่อ — สกุล</label><input value={editForm.name} onChange={e => set('name', e.target.value)} /></div>
+            <div className="field"><label>รหัสพนักงาน</label><input value={driver.code} disabled style={{ background: 'var(--surface-2)' }} /></div>
           </div>
           <div className="field-row">
-            <div className="field"><label>เลขบัตรประชาชน</label><input defaultValue={driver.idCard} /></div>
-            <div className="field"><label>เบอร์โทรศัพท์</label><input defaultValue={driver.phone} /></div>
+            <div className="field"><label>เลขบัตรประชาชน</label><input value={editForm.idCard} onChange={e => set('idCard', e.target.value)} /></div>
+            <div className="field"><label>เบอร์โทรศัพท์</label><input value={editForm.phone} onChange={e => set('phone', e.target.value)} /></div>
           </div>
           <div className="field-row">
             <div className="field">
               <label>โรงงาน</label>
-              <select defaultValue={driver.factory}>{FACTORIES.map(f => <option key={f}>{f}</option>)}</select>
+              <select value={editForm.factory} onChange={e => set('factory', e.target.value)}>
+                {FACTORIES.map(f => <option key={f}>{f}</option>)}
+              </select>
             </div>
             <div className="field">
               <label>กะการทำงาน</label>
-              <select defaultValue={String(driver.shift)}>{SHIFTS.map((s, i) => <option key={i} value={i}>{s}</option>)}</select>
+              <select value={editForm.shift} onChange={e => set('shift', e.target.value)}>
+                {SHIFTS.map((s, i) => <option key={i} value={String(i)}>{s}</option>)}
+              </select>
             </div>
           </div>
           <div className="field">
             <label>เส้นทางหลัก</label>
-            <select defaultValue={driver.route}>{ROUTES.map(r => <option key={r}>{r}</option>)}</select>
+            <select value={editForm.route} onChange={e => set('route', e.target.value)}>
+              {ROUTES.map(r => <option key={r}>{r}</option>)}
+            </select>
           </div>
           <div className="field-row">
-            <div className="field"><label>ใบขับขี่ประเภท</label><input defaultValue={driver.license} /></div>
-            <div className="field"><label>วันหมดอายุใบขับขี่</label><input type="date" defaultValue={driver.licenseExp} /></div>
+            <div className="field">
+              <label>ใบขับขี่ประเภท</label>
+              <select value={editForm.licenseType} onChange={e => set('licenseType', e.target.value)}>
+                <option>B1</option><option>B2</option>
+              </select>
+            </div>
+            <div className="field"><label>วันหมดอายุใบขับขี่</label><input type="date" value={editForm.licenseExp} onChange={e => set('licenseExp', e.target.value)} /></div>
           </div>
-          <div className="field">
-            <label>วันที่เริ่มงาน</label>
-            <input type="date" defaultValue={driver.joined} />
-            <span className="hint">ทำงานในระบบมา {Math.floor((Date.now() - new Date(driver.joined).getTime()) / (365 * 24 * 3600 * 1000))} ปี</span>
+          <div className="field-row">
+            <div className="field">
+              <label>วันที่เริ่มงาน</label>
+              <input type="date" value={editForm.joined} onChange={e => set('joined', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>สถานะ</label>
+              <select value={editForm.status} onChange={e => set('status', e.target.value)}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
           </div>
         </>
       )}
 
       {tab === 'health' && (
         <div>
-          <div className="card" style={{ boxShadow: 'none', marginBottom: 14 }}>
-            <div className="card-head">
-              <div><h3>การตรวจสุขภาพล่าสุด</h3><div className="sub">ตรวจเมื่อ {driver.lastHealth}</div></div>
-              <span className="badge badge-success"><span className="dot"></span>ผ่านเกณฑ์</span>
-            </div>
-            <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
-              <div><div className="text-muted text-xs">น้ำหนัก</div><div className="mono text-strong" style={{ fontWeight: 700 }}>72 กก.</div></div>
-              <div><div className="text-muted text-xs">ส่วนสูง</div><div className="mono text-strong" style={{ fontWeight: 700 }}>171 ซม.</div></div>
-              <div><div className="text-muted text-xs">ความดันโลหิต</div><div className="mono text-strong" style={{ fontWeight: 700 }}>122/80</div></div>
-              <div><div className="text-muted text-xs">การมองเห็น</div><div className="mono text-strong" style={{ fontWeight: 700 }}>20/20</div></div>
-              <div><div className="text-muted text-xs">ตรวจสารเสพติด</div><div style={{ color: 'var(--success)', fontWeight: 700 }}>ผ่าน</div></div>
-              <div><div className="text-muted text-xs">ตรวจครั้งถัดไป</div><div className="mono text-strong" style={{ fontWeight: 700 }}>2026-10-02</div></div>
-            </div>
-          </div>
-          <h4 style={{ margin: '18px 0 8px', fontSize: 13, color: 'var(--text-strong)' }}>ประวัติการตรวจ</h4>
-          {[{ date: driver.lastHealth, result: 'ผ่าน', note: 'ปกติ' }, { date: '2025-10-15', result: 'ผ่าน', note: 'ตรวจประจำปี' }, { date: '2025-04-08', result: 'ผ่าน', note: 'ตรวจประจำปี' }].map((h, i) => (
-            <div key={i} style={{ display: 'flex', padding: '10px 0', borderBottom: '1px solid var(--border)', alignItems: 'center', gap: 12 }}>
-              <Icon name="check" size={14} style={{ color: 'var(--success)' }} />
-              <div style={{ flex: 1 }}><div className="text-strong" style={{ fontSize: 13, fontWeight: 600 }}>{h.note}</div><div className="text-muted text-xs">{h.date}</div></div>
-              <span className="badge badge-success">{h.result}</span>
-            </div>
-          ))}
+          {detailLoading
+            ? <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+            : healthChecks.length === 0
+              ? <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>ยังไม่มีบันทึกสุขภาพ</div>
+              : healthChecks.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', padding: '10px 0', borderBottom: '1px solid var(--border)', alignItems: 'center', gap: 12 }}>
+                    <Icon name={h.result === 'pass' ? 'check' : 'alert'} size={14} style={{ color: h.result === 'pass' ? 'var(--success)' : 'var(--danger)' }} />
+                    <div style={{ flex: 1 }}>
+                      <div className="text-strong" style={{ fontSize: 13, fontWeight: 600 }}>{h.note || 'ตรวจสุขภาพประจำ'}</div>
+                      <div className="text-muted text-xs">{h.check_date}</div>
+                    </div>
+                    <span className={'badge ' + (h.result === 'pass' ? 'badge-success' : 'badge-danger')}>
+                      {h.result === 'pass' ? 'ผ่าน' : 'ไม่ผ่าน'}
+                    </span>
+                  </div>
+                ))
+          }
         </div>
       )}
 
@@ -277,61 +379,95 @@ function DriverDetail({ driver, tab, setTab }) {
         <div>
           <div className="card" style={{ boxShadow: 'none', marginBottom: 14 }}>
             <div className="card-head"><div><h3>สรุปการอบรม</h3><div className="sub">รวม {driver.trainings} หลักสูตร</div></div></div>
-            <div className="card-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, textAlign: 'center' }}>
-              <div><div className="mono" style={{ fontSize: 22, fontWeight: 700, color: 'var(--navy-700)' }}>{driver.trainings}</div><div className="text-muted text-xs">หลักสูตรทั้งหมด</div></div>
-              <div><div className="mono" style={{ fontSize: 22, fontWeight: 700, color: 'var(--success)' }}>{driver.trainings - 2}</div><div className="text-muted text-xs">ผ่าน</div></div>
-              <div><div className="mono" style={{ fontSize: 22, fontWeight: 700, color: 'var(--warning)' }}>2</div><div className="text-muted text-xs">รอประเมิน</div></div>
-            </div>
           </div>
-          <h4 style={{ margin: '18px 0 8px', fontSize: 13, color: 'var(--text-strong)' }}>หลักสูตรล่าสุด</h4>
-          {[
-            { name: 'การขับขี่ปลอดภัย — ระดับสูง', date: '2026-03-22', result: 'ผ่าน',     expire: '2027-03-22' },
-            { name: 'การตอบสนองเหตุฉุกเฉิน',        date: '2025-11-15', result: 'ผ่าน',     expire: '2026-11-15' },
-            { name: 'การให้บริการลูกค้า',            date: '2025-08-30', result: 'ผ่าน',     expire: '2026-08-30' },
-            { name: 'การประหยัดน้ำมัน Eco-drive',    date: '2025-05-12', result: 'รอประเมิน', expire: '-' },
-          ].map((t, i) => (
-            <div key={i} style={{ display: 'flex', padding: '10px 0', borderBottom: '1px solid var(--border)', alignItems: 'center', gap: 12 }}>
-              <Icon name="cap" size={14} style={{ color: 'var(--info)' }} />
-              <div style={{ flex: 1 }}><div className="text-strong" style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</div><div className="text-muted text-xs">{t.date} • หมดอายุ {t.expire}</div></div>
-              <span className={'badge ' + (t.result === 'ผ่าน' ? 'badge-success' : 'badge-warning')}>{t.result}</span>
-            </div>
-          ))}
+          {detailLoading
+            ? <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>กำลังโหลด...</div>
+            : trainingRecords.length === 0
+              ? <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>ยังไม่มีประวัติการอบรม</div>
+              : trainingRecords.map((t, i) => (
+                  <div key={i} style={{ display: 'flex', padding: '10px 0', borderBottom: '1px solid var(--border)', alignItems: 'center', gap: 12 }}>
+                    <Icon name="cap" size={14} style={{ color: 'var(--info)' }} />
+                    <div style={{ flex: 1 }}>
+                      <div className="text-strong" style={{ fontSize: 13, fontWeight: 600 }}>{t.course?.name}</div>
+                      <div className="text-muted text-xs">{t.trained_date} • หมดอายุ {t.expires_date || '-'}</div>
+                    </div>
+                    <span className={'badge ' + (t.expires_date && t.expires_date > new Date().toISOString().slice(0, 10) ? 'badge-success' : 'badge-warning')}>
+                      {t.expires_date && t.expires_date > new Date().toISOString().slice(0, 10) ? 'ยังใช้ได้' : 'หมดอายุ'}
+                    </span>
+                  </div>
+                ))
+          }
         </div>
       )}
     </div>
   )
 }
 
-function AddDriverForm() {
+function AddDriverForm({ form, setForm, errors }) {
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   return (
     <>
       <div className="field-row">
-        <div className="field"><label>ชื่อ — สกุล *</label><input placeholder="เช่น สมชาย ใจดี" /></div>
         <div className="field">
-          <label>รหัสพนักงาน *</label>
-          <input placeholder="D031" defaultValue="D031" disabled style={{ background: 'var(--surface-2)' }} />
+          <label>ชื่อ — สกุล *</label>
+          <input value={form.name} onChange={e => set('name', e.target.value)} className={errors.name ? 'input-error' : ''} placeholder="เช่น สมชาย ใจดี" />
+          {errors.name && <div className="field-err">{errors.name}</div>}
+        </div>
+        <div className="field">
+          <label>รหัสพนักงาน</label>
+          <input value="สร้างอัตโนมัติ" disabled style={{ background: 'var(--surface-2)' }} />
           <span className="hint">ระบบสร้างให้อัตโนมัติ</span>
         </div>
       </div>
       <div className="field-row">
-        <div className="field"><label>เลขบัตรประชาชน *</label><input placeholder="1-1234-56789-01-2" /></div>
-        <div className="field"><label>เบอร์โทรศัพท์ *</label><input placeholder="08X-XXX-XXXX" /></div>
-      </div>
-      <div className="field-row">
-        <div className="field"><label>โรงงาน *</label><select>{FACTORIES.map(f => <option key={f}>{f}</option>)}</select></div>
         <div className="field">
-          <label>กะการทำงาน *</label>
-          <select>{SHIFTS.map((s, i) => <option key={i} value={i}>{s}</option>)}</select>
+          <label>เลขบัตรประชาชน *</label>
+          <input value={form.idCard} onChange={e => set('idCard', e.target.value)} className={errors.idCard ? 'input-error' : ''} placeholder="1-1234-56789-01-2" />
+          {errors.idCard && <div className="field-err">{errors.idCard}</div>}
+        </div>
+        <div className="field">
+          <label>เบอร์โทรศัพท์ *</label>
+          <input value={form.phone} onChange={e => set('phone', e.target.value)} className={errors.phone ? 'input-error' : ''} placeholder="08X-XXX-XXXX" />
+          {errors.phone && <div className="field-err">{errors.phone}</div>}
         </div>
       </div>
-      <div className="field"><label>เส้นทางหลัก *</label><select>{ROUTES.map(r => <option key={r}>{r}</option>)}</select></div>
       <div className="field-row">
-        <div className="field"><label>ใบขับขี่ประเภท *</label><select><option>B1</option><option>B2</option></select></div>
-        <div className="field"><label>วันหมดอายุใบขับขี่ *</label><input type="date" /></div>
+        <div className="field">
+          <label>โรงงาน *</label>
+          <select value={form.factory} onChange={e => set('factory', e.target.value)}>
+            {FACTORIES.map(f => <option key={f}>{f}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label>กะการทำงาน *</label>
+          <select value={form.shift} onChange={e => set('shift', e.target.value)}>
+            {SHIFTS.map((s, i) => <option key={i} value={String(i)}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="field">
+        <label>เส้นทางหลัก *</label>
+        <select value={form.route} onChange={e => set('route', e.target.value)}>
+          {ROUTES.map(r => <option key={r}>{r}</option>)}
+        </select>
       </div>
       <div className="field-row">
-        <div className="field"><label>รหัสผ่านเริ่มต้น *</label><input type="password" placeholder="••••••••" /></div>
-        <div className="field"><label>วันที่เริ่มงาน *</label><input type="date" /></div>
+        <div className="field">
+          <label>ใบขับขี่ประเภท *</label>
+          <select value={form.licenseType} onChange={e => set('licenseType', e.target.value)}>
+            <option>B1</option><option>B2</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>วันหมดอายุใบขับขี่ *</label>
+          <input type="date" value={form.licenseExp} onChange={e => set('licenseExp', e.target.value)} className={errors.licenseExp ? 'input-error' : ''} />
+          {errors.licenseExp && <div className="field-err">{errors.licenseExp}</div>}
+        </div>
+      </div>
+      <div className="field">
+        <label>วันที่เริ่มงาน *</label>
+        <input type="date" value={form.joined} onChange={e => set('joined', e.target.value)} className={errors.joined ? 'input-error' : ''} />
+        {errors.joined && <div className="field-err">{errors.joined}</div>}
       </div>
     </>
   )
