@@ -4,7 +4,7 @@ import Icon from '../components/Icon'
 
 export default function Login() {
   const { signIn } = useAuth()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [pwd, setPwd] = useState('')
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
@@ -14,12 +14,12 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault()
     setErr('')
-    if (!email.trim() || !pwd) { setErr('กรุณากรอกอีเมลและรหัสผ่าน'); return }
+    if (!username.trim() || !pwd) { setErr('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน'); return }
     setLoading(true)
     try {
-      await signIn(email.trim(), pwd)
-    } catch {
-      setErr('อีเมลหรือรหัสผ่านไม่ถูกต้อง')
+      await signIn(username.trim(), pwd)
+    } catch (e) {
+      setErr(e.message === 'ไม่พบชื่อผู้ใช้นี้ในระบบ' ? e.message : 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
     } finally {
       setLoading(false)
     }
@@ -48,13 +48,14 @@ export default function Login() {
         )}
 
         <div className="field">
-          <label>อีเมล</label>
+          <label>ชื่อผู้ใช้</label>
           <input
-            type="email"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setErr('') }}
-            placeholder="name@bms.co.th"
+            type="text"
+            value={username}
+            onChange={e => { setUsername(e.target.value); setErr('') }}
+            placeholder="เช่น admin"
             autoFocus
+            autoComplete="username"
             className={err ? 'input-error' : ''}
           />
         </div>

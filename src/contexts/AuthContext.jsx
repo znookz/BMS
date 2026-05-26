@@ -23,7 +23,9 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = async (email, password) => {
+  const signIn = async (username, password) => {
+    const { data: email, error: lookupErr } = await supabase.rpc('get_email_by_username', { p_username: username.trim().toLowerCase() })
+    if (lookupErr || !email) throw new Error('ไม่พบชื่อผู้ใช้นี้ในระบบ')
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     return data
