@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import Icon from '../components/Icon'
 import { initials } from '../lib/mockData'
 import { useUsers } from '../hooks/useUsers'
@@ -30,6 +31,7 @@ function fmtDate(ts) {
 
 export default function Users() {
   const { onToast } = useOutletContext() || {}
+  const { user: currentUser, signOut } = useAuth()
   const { users, loading, error, add, update, remove } = useUsers()
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -65,6 +67,10 @@ export default function Users() {
     try {
       if (editTarget) {
         await update(editTarget.id, form)
+        if (editTarget.id === currentUser?.id) {
+          await signOut()
+          return
+        }
         onToast?.({ msg: 'บันทึกข้อมูล ' + form.name + ' สำเร็จ', kind: 'success' })
       } else {
         await add(form)
