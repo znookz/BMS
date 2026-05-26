@@ -3,24 +3,39 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Drivers from './pages/Drivers'
+import Buses from './pages/Buses'
+import Maintenance from './pages/Maintenance'
+import Users from './pages/Users'
+import StubPage from './pages/StubPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return <div className="flex items-center justify-center h-screen text-primary">กำลังโหลด...</div>
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--navy-700)', fontFamily: 'var(--font-sans)' }}>กำลังโหลด...</div>
   if (!user) return <Navigate to="/login" replace />
   return children
 }
 
 function AppRoutes() {
   const { user, loading } = useAuth()
-  if (loading) return <div className="flex items-center justify-center h-screen text-primary">กำลังโหลด...</div>
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--navy-700)', fontFamily: 'var(--font-sans)' }}>กำลังโหลด...</div>
 
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
-        <Route path="*" element={<div className="p-8 text-gray-500">หน้านี้กำลังพัฒนา</div>} />
+        <Route path="driver" element={<Drivers />} />
+        <Route path="bus" element={<Buses />} />
+        <Route path="maintenance" element={<Maintenance />} />
+        <Route path="cost" element={<StubPage page="cost" />} />
+        <Route path="fuel" element={<StubPage page="fuel" />} />
+        <Route path="training" element={<StubPage page="training" />} />
+        <Route path="license" element={<StubPage page="license" />} />
+        <Route path="complaint" element={<StubPage page="complaint" />} />
+        <Route path="safety" element={<StubPage page="safety" />} />
+        <Route path="purchase" element={<StubPage page="purchase" />} />
+        <Route path="users" element={<Users />} />
       </Route>
     </Routes>
   )
