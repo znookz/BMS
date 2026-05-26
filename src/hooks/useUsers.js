@@ -30,6 +30,7 @@ export function useUsers() {
     const { error } = await supabase.rpc('admin_update_user', {
       p_user_id: id, p_name: form.name, p_role: form.role,
       p_username: form.username, p_status: form.status,
+      p_password: form.password || null,
     })
     if (error) throw error
     await load()

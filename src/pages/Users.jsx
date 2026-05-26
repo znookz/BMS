@@ -6,7 +6,7 @@ import { useUsers } from '../hooks/useUsers'
 
 const DEFAULT_FORM = { name: '', email: '', username: '', role: 'operation', password: '', confirm: '' }
 
-function validate(form, isEdit, users, editId) {
+function validate(form, isEdit) {
   const e = {}
   if (!form.name.trim()) e.name = 'กรอกชื่อ'
   if (!form.username.trim()) e.username = 'กรอก User ID'
@@ -15,6 +15,9 @@ function validate(form, isEdit, users, editId) {
     if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'อีเมลไม่ถูกต้อง'
     if (!form.password) e.password = 'กรอกรหัสผ่าน'
     else if (form.password.length < 6) e.password = 'ต้องมีอย่างน้อย 6 ตัวอักษร'
+    if (form.password && form.password !== form.confirm) e.confirm = 'รหัสผ่านไม่ตรงกัน'
+  } else {
+    if (form.password && form.password.length < 6) e.password = 'ต้องมีอย่างน้อย 6 ตัวอักษร'
     if (form.password && form.password !== form.confirm) e.confirm = 'รหัสผ่านไม่ตรงกัน'
   }
   return e
@@ -55,7 +58,7 @@ export default function Users() {
   const closeModal = () => { setModalOpen(false); setEditTarget(null); setErrors({}) }
 
   const save = async () => {
-    const e = validate(form, !!editTarget, users, editTarget?.id)
+    const e = validate(form, !!editTarget)
     setErrors(e)
     if (Object.keys(e).length) return
     setSaving(true)
@@ -251,6 +254,26 @@ export default function Users() {
                     {errors.confirm && <div className="field-err">{errors.confirm}</div>}
                   </div>
                 </>
+              )}
+
+              {editTarget && (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    เปลี่ยนรหัสผ่าน
+                  </div>
+                  <div className="field">
+                    <label>รหัสผ่านใหม่ <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(เว้นว่างถ้าไม่ต้องการเปลี่ยน)</span></label>
+                    <input type="password" value={form.password} onChange={e => set('password', e.target.value)} className={errors.password ? 'input-error' : ''} placeholder="••••••••" />
+                    {errors.password && <div className="field-err">{errors.password}</div>}
+                  </div>
+                  {form.password && (
+                    <div className="field">
+                      <label>ยืนยันรหัสผ่านใหม่ *</label>
+                      <input type="password" value={form.confirm} onChange={e => set('confirm', e.target.value)} className={errors.confirm ? 'input-error' : ''} placeholder="••••••••" />
+                      {errors.confirm && <div className="field-err">{errors.confirm}</div>}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
