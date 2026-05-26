@@ -1,0 +1,10 @@
+node_modules
+dist
+.env.local
+.env.*.local
+*.lock~
+.DS_Store
+*.xlsx
+*.jpg
+*.jpeg
+*.png
