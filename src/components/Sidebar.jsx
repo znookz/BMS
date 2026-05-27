@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import Icon from './Icon'
 import { useAuth } from '../contexts/AuthContext'
-import { initials } from '../lib/mockData'
+import { initials } from '../lib/utils'
 
 const NAV = [
   { to: '/',           label: 'Dashboard',          icon: 'home',    end: true },
   { to: '/driver',     label: 'Driver',             icon: 'user' },
   { to: '/bus',        label: 'Bus Fleet',          icon: 'bus' },
+  { to: '/companies',  label: 'Transport Company',  icon: 'building' },
   { to: '/maintenance',label: 'Maintenance',        icon: 'wrench' },
   { to: '/cost',       label: 'Cost Control',       icon: 'coin' },
   { to: '/fuel',       label: 'Fuel (ATG)',         icon: 'fuel' },

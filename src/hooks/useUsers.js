@@ -21,6 +21,7 @@ export function useUsers() {
     const { error } = await supabase.rpc('admin_create_user', {
       p_email: form.email, p_password: form.password,
       p_name: form.name, p_role: form.role, p_username: form.username,
+      p_company_access: form.role === 'admin' ? null : (form.company_access?.length ? form.company_access : null),
     })
     if (error) throw error
     await load()
@@ -31,6 +32,7 @@ export function useUsers() {
       p_user_id: id, p_name: form.name, p_role: form.role,
       p_username: form.username, p_status: form.status,
       p_password: form.password || null,
+      p_company_access: form.role === 'admin' ? null : (form.company_access?.length ? form.company_access : null),
     })
     if (error) throw error
     await load()

@@ -11,6 +11,7 @@ function buildPayload(form) {
     seats:            form.seats ? Number(form.seats) : null,
     factory:          form.factory,
     status:           form.status,
+    company_id:       form.company_id || null,
     driver_id:        form.driver_id || null,
     current_km:       Number(form.current_km) || 0,
     next_service_km:  form.next_service_km ? Number(form.next_service_km) : null,
@@ -30,7 +31,7 @@ export function useBuses() {
     setLoading(true)
     setError(null)
     const [bRes, dRes] = await Promise.all([
-      supabase.from('buses').select('*, driver:drivers(id, name)').order('code'),
+      supabase.from('buses').select('*, driver:drivers(id, name), company:transport_companies(id, code, name_th)').order('code'),
       supabase.from('drivers').select('id, name, code').eq('status', 'active').order('code'),
     ])
     if (bRes.error) { setError(bRes.error.message); setLoading(false); return }

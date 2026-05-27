@@ -3,10 +3,12 @@ import Icon from '../components/Icon'
 import { KPI } from '../components/ui'
 import { LineChart, BarChart, DonutChart } from '../components/Charts'
 import {
-  BUSES, FACTORIES, COST_TREND, FUEL_BY_COMPANY, EXPIRY_ALERTS, ACTIVITY,
+  COST_TREND, FUEL_BY_COMPANY, EXPIRY_ALERTS, ACTIVITY,
   BUSES_ACTIVE, MAINTENANCE_NOW, COMPLAINTS_OPEN, COST_THIS_MONTH,
-  bahtCompact, formatNumber,
+  FACTORY_STATS,
 } from '../lib/mockData'
+import { bahtCompact, formatNumber } from '../lib/utils'
+import { FACTORIES } from '../lib/constants'
 
 export default function Dashboard() {
   const { onToast } = useOutletContext() || {}
@@ -142,27 +144,22 @@ export default function Dashboard() {
         <div className="card">
           <div className="card-head"><h3>สถานะรถตามโรงงาน</h3></div>
           <div className="card-body">
-            {FACTORIES.map(f => {
-              const fBuses = BUSES.filter(b => b.factory === f)
-              const active = fBuses.filter(b => b.status === 'active').length
-              const maint  = fBuses.filter(b => b.status === 'maintenance').length
-              return (
-                <div key={f} style={{ marginBottom: 14 }}>
-                  <div className="flex justify-between mb-8" style={{ fontSize: 13 }}>
-                    <span className="text-strong" style={{ fontWeight: 600 }}>{f}</span>
-                    <span className="mono text-muted">{fBuses.length} คัน</span>
-                  </div>
-                  <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', background: 'var(--surface-2)' }}>
-                    <div style={{ width: `${(active / fBuses.length) * 100}%`, background: 'var(--success)' }}></div>
-                    <div style={{ width: `${(maint / fBuses.length) * 100}%`,  background: 'var(--warning)' }}></div>
-                  </div>
-                  <div className="flex gap-12 mt-4" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
-                    <span><span style={{ color: 'var(--success)', fontWeight: 700 }}>●</span> ใช้งาน {active}</span>
-                    <span><span style={{ color: 'var(--warning)', fontWeight: 700 }}>●</span> ซ่อม {maint}</span>
-                  </div>
+            {FACTORY_STATS.map(f => (
+              <div key={f.name} style={{ marginBottom: 14 }}>
+                <div className="flex justify-between mb-8" style={{ fontSize: 13 }}>
+                  <span className="text-strong" style={{ fontWeight: 600 }}>{f.name}</span>
+                  <span className="mono text-muted">{f.total} คัน</span>
                 </div>
-              )
-            })}
+                <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', background: 'var(--surface-2)' }}>
+                  <div style={{ width: `${(f.active / f.total) * 100}%`, background: 'var(--success)' }}></div>
+                  <div style={{ width: `${(f.maintenance / f.total) * 100}%`, background: 'var(--warning)' }}></div>
+                </div>
+                <div className="flex gap-12 mt-4" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                  <span><span style={{ color: 'var(--success)', fontWeight: 700 }}>●</span> ใช้งาน {f.active}</span>
+                  <span><span style={{ color: 'var(--warning)', fontWeight: 700 }}>●</span> ซ่อม {f.maintenance}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

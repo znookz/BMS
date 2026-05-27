@@ -2,19 +2,18 @@ import { useState, useMemo, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Icon from '../components/Icon'
 import { StatusBadge, Drawer } from '../components/ui'
-import { initials, formatNumber } from '../lib/mockData'
+import { initials, formatNumber, formatBaht } from '../lib/utils'
+import { FACTORIES } from '../lib/constants'
 import { useBuses, fetchBusLogs } from '../hooks/useBuses'
+import { useTransportCompanies } from '../hooks/useTransportCompanies'
 
 const KIND_LABEL = { scheduled: 'ตามแผน', repair: 'ซ่อมแซม', accident: 'อุบัติเหตุ' }
 const KIND_BADGE = { scheduled: 'badge-navy', repair: 'badge-warning', accident: 'badge-danger' }
-const baht = n => '฿' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-
-const FACTORIES = ['บางปะอิน', 'อยุธยา', 'ลพบุรี']
 
 const DEFAULT_FORM = {
   plate: '', type: 'air', brand: '', model: '', year: '',
   seats: '', factory: 'บางปะอิน', status: 'active',
-  driver_id: '', current_km: '0', next_service_km: '',
+  company_id: '', driver_id: '', current_km: '0', next_service_km: '',
   last_service_date: '', insurance_exp: '', tax_exp: '',
 }
 
@@ -27,11 +26,13 @@ function validate(form) {
 export default function Buses() {
   const { onToast } = useOutletContext() || {}
   const { buses, drivers, loading, error, add, update, remove } = useBuses()
+  const { companies } = useTransportCompanies()
 
   const [busType, setBusType] = useState('air')
   const [viewMode, setViewMode] = useState('table')
   const [factory, setFactory]   = useState('all')
   const [status, setStatus]     = useState('all')
+  const [company, setCompany]   = useState('all')
   const [search, setSearch]     = useState('')
 
   const [selected, setSelected] = useState(null)
@@ -52,16 +53,18 @@ export default function Buses() {
     if (b.type !== busType) return false
     if (factory !== 'all' && b.factory !== factory) return false
     if (status  !== 'all' && b.status  !== status)  return false
+    if (company !== 'all' && b.company_id !== company) return false
     if (search) {
       const q = search.toLowerCase()
       if (!(
         b.plate.toLowerCase().includes(q) ||
         (b.brand || '').toLowerCase().includes(q) ||
-        (b.driver?.name || '').includes(q)
+        (b.driver?.name || '').includes(q) ||
+        (b.company?.name_th || '').toLowerCase().includes(q)
       )) return false
     }
     return true
-  }), [buses, busType, factory, status, search])
+  }), [buses, busType, factory, status, company, search])
 
   const openDetail = (b, view = false) => {
     setSelected(b)
@@ -76,6 +79,7 @@ export default function Buses() {
       seats:            b.seats ? String(b.seats) : '',
       factory:          b.factory,
       status:           b.status,
+      company_id:       b.company_id || '',
       driver_id:        b.driver_id || '',
       current_km:       String(b.current_km || 0),
       next_service_km:  b.next_service_km ? String(b.next_service_km) : '',
@@ -176,6 +180,10 @@ export default function Buses() {
             <option value="maintenance">In Maintenance</option>
             <option value="retired">Retired</option>
           </select>
+          <select value={company} onChange={e => setCompany(e.target.value)}>
+            <option value="all">ทุกบริษัทขนส่ง</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name_th}</option>)}
+          </select>
           <div className="toolbar-spacer" />
           <div className="result-count">{filtered.length} คัน</div>
         </div>
@@ -223,6 +231,7 @@ export default function Buses() {
                 <tr>
                   <th>ทะเบียน</th>
                   <th>ยี่ห้อ / รุ่น</th>
+                  <th>บริษัทขนส่ง</th>
                   <th>โรงงาน</th>
                   <th>คนขับ</th>
                   <th style={{ textAlign: 'right' }}>เลขไมล์</th>
@@ -233,10 +242,10 @@ export default function Buses() {
               </thead>
               <tbody>
                 {loading && (
-                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                  <tr><td colSpan="9" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
                 )}
                 {error && (
-                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)' }}>{error}</td></tr>
+                  <tr><td colSpan="9" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)' }}>{error}</td></tr>
                 )}
                 {!loading && !error && filtered.map(b => (
                   <tr key={b.id} className="row-click" onClick={() => openDetail(b, true)}>
@@ -249,6 +258,12 @@ export default function Buses() {
                       </div>
                     </td>
                     <td>{[b.brand, b.model].filter(Boolean).join(' ') || '—'}</td>
+                    <td>
+                      {b.company
+                        ? <span className="badge badge-navy">{b.company.code}</span>
+                        : <span className="text-muted">—</span>
+                      }
+                    </td>
                     <td>{b.factory}</td>
                     <td>
                       {b.driver?.name
@@ -272,7 +287,7 @@ export default function Buses() {
                   </tr>
                 ))}
                 {!loading && !error && filtered.length === 0 && (
-                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>ไม่พบรถบัสตามเงื่อนไขที่เลือก</td></tr>
+                  <tr><td colSpan="9" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>ไม่พบรถบัสตามเงื่อนไขที่เลือก</td></tr>
                 )}
               </tbody>
             </table>
@@ -302,7 +317,7 @@ export default function Buses() {
           <BusDetail
             bus={selected} tab={tab} setTab={setTab}
             form={form} set={set} errors={errors}
-            isView={isView} drivers={drivers}
+            isView={isView} drivers={drivers} companies={companies}
           />
         )}
       </Drawer>
@@ -321,7 +336,7 @@ export default function Buses() {
           </>
         }
       >
-        <BusForm form={form} set={set} errors={errors} drivers={drivers} />
+        <BusForm form={form} set={set} errors={errors} drivers={drivers} companies={companies} />
       </Drawer>
 
       {/* Delete confirmation */}
@@ -344,7 +359,7 @@ export default function Buses() {
   )
 }
 
-function BusDetail({ bus, tab, setTab, form, set, errors, isView, drivers }) {
+function BusDetail({ bus, tab, setTab, form, set, errors, isView, drivers, companies }) {
   const pct = Number(form.next_service_km) > 0
     ? Math.max(0, Math.min(110, (Number(form.current_km) / Number(form.next_service_km)) * 100))
     : 0
@@ -421,6 +436,13 @@ function BusDetail({ bus, tab, setTab, form, set, errors, isView, drivers }) {
             </div>
           </div>
           <div className="field">
+            <label>บริษัทขนส่ง</label>
+            <select value={form.company_id} onChange={e => set('company_id', e.target.value)} disabled={isView}>
+              <option value="">— ไม่ระบุ —</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name_th} ({c.code})</option>)}
+            </select>
+          </div>
+          <div className="field">
             <label>คนขับปัจจุบัน</label>
             <select value={form.driver_id} onChange={e => set('driver_id', e.target.value)} disabled={isView}>
               <option value="">— ไม่มีคนขับ —</option>
@@ -484,7 +506,7 @@ function BusDetail({ bus, tab, setTab, form, set, errors, isView, drivers }) {
                     <td className="text-muted" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {l.description || '—'}
                     </td>
-                    <td className="mono tbl-cell-strong" style={{ textAlign: 'right' }}>{baht(l.cost)}</td>
+                    <td className="mono tbl-cell-strong" style={{ textAlign: 'right' }}>{formatBaht(l.cost, 2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -509,7 +531,7 @@ function BusDetail({ bus, tab, setTab, form, set, errors, isView, drivers }) {
   )
 }
 
-function BusForm({ form, set, errors, drivers }) {
+function BusForm({ form, set, errors, drivers, companies }) {
   return (
     <>
       <div className="field-row">
@@ -549,6 +571,13 @@ function BusForm({ form, set, errors, drivers }) {
             <option value="retired">Retired</option>
           </select>
         </div>
+      </div>
+      <div className="field">
+        <label>บริษัทขนส่ง</label>
+        <select value={form.company_id} onChange={e => set('company_id', e.target.value)}>
+          <option value="">— ไม่ระบุ —</option>
+          {companies.map(c => <option key={c.id} value={c.id}>{c.name_th} ({c.code})</option>)}
+        </select>
       </div>
       <div className="field">
         <label>คนขับปัจจุบัน</label>

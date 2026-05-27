@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Icon from '../components/Icon'
 import { KPI, Progress } from '../components/ui'
-import { formatNumber } from '../lib/mockData'
+import { formatNumber } from '../lib/utils'
 import { useMaintenance } from '../hooks/useMaintenance'
 
 const FACTORIES = ['บางปะอิน', 'อยุธยา', 'ลพบุรี']

@@ -2,10 +2,14 @@ import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import Icon from '../components/Icon'
-import { initials } from '../lib/mockData'
+import { initials } from '../lib/utils'
 import { useUsers } from '../hooks/useUsers'
+import { useTransportCompanies } from '../hooks/useTransportCompanies'
 
-const DEFAULT_FORM = { name: '', email: '', username: '', role: 'operation', password: '', confirm: '' }
+const DEFAULT_FORM = {
+  name: '', email: '', username: '', role: 'operation',
+  password: '', confirm: '', status: 'active', company_access: [],
+}
 
 function validate(form, isEdit) {
   const e = {}
@@ -21,6 +25,9 @@ function validate(form, isEdit) {
     if (form.password && form.password.length < 6) e.password = 'ต้องมีอย่างน้อย 6 ตัวอักษร'
     if (form.password && form.password !== form.confirm) e.confirm = 'รหัสผ่านไม่ตรงกัน'
   }
+  if (form.role === 'operation' && (!form.company_access || form.company_access.length === 0)) {
+    e.company_access = 'เลือกอย่างน้อย 1 บริษัทขนส่ง'
+  }
   return e
 }
 
@@ -33,6 +40,7 @@ export default function Users() {
   const { onToast } = useOutletContext() || {}
   const { user: currentUser, signOut } = useAuth()
   const { users, loading, error, add, update, remove } = useUsers()
+  const { companies } = useTransportCompanies()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
@@ -43,6 +51,22 @@ export default function Users() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  const toggleCompany = (id) => {
+    setForm(f => {
+      const current = f.company_access || []
+      return {
+        ...f,
+        company_access: current.includes(id)
+          ? current.filter(c => c !== id)
+          : [...current, id],
+      }
+    })
+  }
+
+  const toggleAllCompanies = (all) => {
+    setForm(f => ({ ...f, company_access: all ? companies.map(c => c.id) : [] }))
+  }
+
   const openAdd = () => {
     setEditTarget(null)
     setForm(DEFAULT_FORM)
@@ -52,7 +76,11 @@ export default function Users() {
 
   const openEdit = (u) => {
     setEditTarget(u)
-    setForm({ name: u.name, email: u.email, username: u.username || '', role: u.role, password: '', confirm: '', status: u.status })
+    setForm({
+      name: u.name, email: u.email, username: u.username || '',
+      role: u.role, password: '', confirm: '', status: u.status,
+      company_access: u.company_access || [],
+    })
     setErrors({})
     setModalOpen(true)
   }
@@ -67,10 +95,7 @@ export default function Users() {
     try {
       if (editTarget) {
         await update(editTarget.id, form)
-        if (editTarget.id === currentUser?.id) {
-          await signOut()
-          return
-        }
+        if (editTarget.id === currentUser?.id) { await signOut(); return }
         onToast?.({ msg: 'บันทึกข้อมูล ' + form.name + ' สำเร็จ', kind: 'success' })
       } else {
         await add(form)
@@ -82,9 +107,7 @@ export default function Users() {
         : err.message?.includes('email_taken') ? 'อีเมลนี้ถูกใช้แล้ว'
         : 'เกิดข้อผิดพลาด: ' + err.message
       onToast?.({ msg, kind: 'error' })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const confirmDelete = async () => {
@@ -112,6 +135,7 @@ export default function Users() {
                 <th>ผู้ใช้งาน</th>
                 <th>User ID</th>
                 <th>บทบาท</th>
+                <th>บริษัทขนส่ง</th>
                 <th>เข้าสู่ระบบล่าสุด</th>
                 <th>สถานะ</th>
                 <th style={{ textAlign: 'right' }}>การจัดการ</th>
@@ -119,10 +143,10 @@ export default function Users() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
+                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>กำลังโหลด...</td></tr>
               )}
               {error && (
-                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)' }}>{error}</td></tr>
+                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)' }}>{error}</td></tr>
               )}
               {!loading && !error && users.map(u => (
                 <tr key={u.id}>
@@ -141,7 +165,10 @@ export default function Users() {
                       {u.role === 'admin' ? 'Admin' : 'Operation'}
                     </span>
                   </td>
-                  <td className="text-muted">{fmtDate(u.last_sign_in)}</td>
+                  <td>
+                    <CompanyAccessChips userAccess={u.company_access} role={u.role} companies={companies} />
+                  </td>
+                  <td className="text-muted">{fmtDate(u.last_sign_in_at)}</td>
                   <td>
                     <span className={'badge ' + (u.status === 'active' ? 'badge-success' : 'badge-neutral')}>
                       <span className="dot"></span>{u.status === 'active' ? 'Active' : 'Inactive'}
@@ -163,7 +190,7 @@ export default function Users() {
       {/* Add / Edit Modal */}
       {modalOpen && (
         <div className="modal-scrim" onClick={closeModal}>
-          <div className="modal modal-form" onClick={e => e.stopPropagation()} role="dialog">
+          <div className="modal modal-form modal-form-lg" onClick={e => e.stopPropagation()} role="dialog">
             <button className="modal-close" onClick={closeModal}><Icon name="close" size={18} /></button>
             <div className="modal-form-head">
               <div className="modal-ico" style={{ margin: 0, width: 42, height: 42, borderRadius: 10 }}>
@@ -201,7 +228,6 @@ export default function Users() {
                   {errors.email && <div className="field-err">{errors.email}</div>}
                 </div>
               )}
-
               {editTarget && (
                 <div className="field">
                   <label>อีเมล</label>
@@ -209,41 +235,63 @@ export default function Users() {
                 </div>
               )}
 
+              {/* Role — dropdown */}
               <div className="field">
                 <label>บทบาท *</label>
-                <div className="role-picker">
-                  {[
-                    { id: 'admin',     label: 'Admin',     desc: 'เข้าถึงได้ทุกโมดูล รวม User Management' },
-                    { id: 'operation', label: 'Operation', desc: 'เข้าถึงโมดูลปฏิบัติการ ไม่เห็น User Management' },
-                  ].map(r => (
-                    <button key={r.id} type="button" className={'role-opt ' + (form.role === r.id ? 'on' : '')} onClick={() => set('role', r.id)}>
-                      <div className="role-opt-head">
-                        <span className={'role-badge ' + (r.id === 'admin' ? 'role-admin' : 'role-op')}>{r.label}</span>
-                        {form.role === r.id && <Icon name="check" size={14} style={{ color: 'var(--navy-700)' }} />}
-                      </div>
-                      <div className="role-opt-desc">{r.desc}</div>
-                    </button>
-                  ))}
-                </div>
+                <select value={form.role} onChange={e => set('role', e.target.value)}>
+                  <option value="admin">Admin — เข้าถึงได้ทุกโมดูล รวม User Management</option>
+                  <option value="operation">Operation — เข้าถึงโมดูลปฏิบัติการ ไม่เห็น User Management</option>
+                </select>
+              </div>
+
+              {/* Company access */}
+              <div className="field">
+                <label>สิทธิ์เข้าถึงบริษัทขนส่ง</label>
+                {form.role === 'admin' ? (
+                  <div className="company-access-locked">
+                    <Icon name="lock" size={14} style={{ flexShrink: 0 }} />
+                    <span>Admin เห็นข้อมูลทุกบริษัทขนส่งอัตโนมัติ</span>
+                  </div>
+                ) : (
+                  <div className={'company-access-wrap' + (errors.company_access ? ' error' : '')}>
+                    <div className="company-access-header">
+                      <label className="company-access-all">
+                        <input
+                          type="checkbox"
+                          checked={form.company_access.length === companies.length && companies.length > 0}
+                          onChange={e => toggleAllCompanies(e.target.checked)}
+                        />
+                        <span>ทุกบริษัทขนส่ง</span>
+                      </label>
+                      <span className="company-access-count">
+                        เลือกแล้ว {form.company_access.length}/{companies.length}
+                      </span>
+                    </div>
+                    <div className="company-access-grid">
+                      {companies.map(c => (
+                        <label key={c.id} className={'company-access-item' + (form.company_access.includes(c.id) ? ' checked' : '')}>
+                          <input
+                            type="checkbox"
+                            checked={form.company_access.includes(c.id)}
+                            onChange={() => toggleCompany(c.id)}
+                          />
+                          <span className="company-access-code">{c.code}</span>
+                          <span className="company-access-name">{c.name_th}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {errors.company_access && <div className="field-err">{errors.company_access}</div>}
+                  </div>
+                )}
               </div>
 
               {editTarget && (
                 <div className="field">
                   <label>สถานะ</label>
-                  <div className="role-picker">
-                    {[
-                      { id: 'active',   label: 'Active',   desc: 'ใช้งานได้ปกติ' },
-                      { id: 'inactive', label: 'Inactive', desc: 'ระงับการใช้งานชั่วคราว' },
-                    ].map(s => (
-                      <button key={s.id} type="button" className={'role-opt ' + (form.status === s.id ? 'on' : '')} onClick={() => set('status', s.id)}>
-                        <div className="role-opt-head">
-                          <span className={'badge ' + (s.id === 'active' ? 'badge-success' : 'badge-neutral')}><span className="dot"></span>{s.label}</span>
-                          {form.status === s.id && <Icon name="check" size={14} style={{ color: 'var(--navy-700)' }} />}
-                        </div>
-                        <div className="role-opt-desc">{s.desc}</div>
-                      </button>
-                    ))}
-                  </div>
+                  <select value={form.status} onChange={e => set('status', e.target.value)}>
+                    <option value="active">Active — ใช้งานได้ปกติ</option>
+                    <option value="inactive">Inactive — ระงับการใช้งานชั่วคราว</option>
+                  </select>
                 </div>
               )}
 
@@ -308,6 +356,28 @@ export default function Users() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+function CompanyAccessChips({ userAccess, role, companies }) {
+  if (role === 'admin') {
+    return <span className="badge badge-navy" style={{ fontSize: 11 }}>ทุกบริษัท</span>
+  }
+  if (!userAccess || userAccess.length === 0) {
+    return <span className="text-muted">—</span>
+  }
+  const matched = companies.filter(c => userAccess.includes(c.id))
+  const visible = matched.slice(0, 3)
+  const extra = matched.length - 3
+  return (
+    <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+      {visible.map(c => (
+        <span key={c.id} className="badge badge-navy mono" style={{ fontSize: 11 }}>{c.code}</span>
+      ))}
+      {extra > 0 && (
+        <span className="badge badge-neutral" style={{ fontSize: 11 }}>+{extra}</span>
       )}
     </div>
   )

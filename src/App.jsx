@@ -1,10 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Drivers from './pages/Drivers'
 import Buses from './pages/Buses'
+import TransportCompanies from './pages/TransportCompanies'
 import Maintenance from './pages/Maintenance'
 import Users from './pages/Users'
 import Cost from './pages/Cost'
@@ -28,6 +30,7 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="driver" element={<Drivers />} />
         <Route path="bus" element={<Buses />} />
+        <Route path="companies" element={<TransportCompanies />} />
         <Route path="maintenance" element={<Maintenance />} />
         <Route path="cost" element={<Cost />} />
         <Route path="fuel" element={<StubPage page="fuel" />} />
@@ -44,10 +47,12 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

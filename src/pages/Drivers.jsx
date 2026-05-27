@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Icon from '../components/Icon'
 import { StatusBadge, Avatar, Drawer, Pagination } from '../components/ui'
-import { FACTORIES, ROUTES, SHIFTS, initials } from '../lib/mockData'
+import { FACTORIES, ROUTES, SHIFTS } from '../lib/constants'
+import { initials } from '../lib/utils'
 import { useDrivers, fetchDriverDetail } from '../hooks/useDrivers'
 
 const DEFAULT_ADD = { name: '', idCard: '', phone: '', factory: 'บางปะอิน', route: ROUTES[0], shift: '0', licenseType: 'B2', licenseExp: '', joined: '' }

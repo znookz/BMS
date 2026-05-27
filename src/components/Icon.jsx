@@ -43,6 +43,7 @@ const paths = {
   lock:     <><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V8a5 5 0 0110 0v3"/><circle cx="12" cy="16" r="1.2" fill="currentColor"/></>,
   eyeOff:   <><path d="M2 2l20 20"/><path d="M6.7 6.7C4 8.5 2 12 2 12s4 7 10 7c2 0 3.7-.5 5.3-1.3"/><path d="M10 5.2A11 11 0 0112 5c6 0 10 7 10 7s-.9 1.6-2.6 3.3"/><path d="M14.1 14.1A3 3 0 019.9 9.9"/></>,
   logout:   <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></>,
+  building: <><rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 9l9-6 9 6"/><path d="M9 21V14h6v7"/></>,
 }
 
 export default function Icon({ name, size = 18, className = '', style = {} }) {

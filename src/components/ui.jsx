@@ -1,5 +1,5 @@
 import Icon from './Icon'
-import { initials } from '../lib/mockData'
+import { initials } from '../lib/utils'
 
 export function KPI({ tone = 'navy', icon, label, value, trend, foot }) {
   return (
