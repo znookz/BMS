@@ -26,7 +26,9 @@
       "PowerShell($word = New-Object -ComObject Word.Application -ErrorAction SilentlyContinue; if \\($word\\) { $word.Quit\\(\\); \"Word OK\" } else { \"Word not found\" })",
       "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\patta\\\\Desktop\\\\BMS\\\\docs\\\\create-requirement-doc.ps1\")",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\patta\\\\Desktop\\\\BMS\\\\design_bundle\" -Recurse | ForEach-Object { $_.FullName })",
-      "PowerShell(Test-Path *)"
+      "PowerShell(Test-Path *)",
+      "mcp__claude_ai_Supabase__list_tables",
+      "Bash(npx vite *)"
     ]
   }
 }
