@@ -68,7 +68,7 @@ PC-first, mobile-responsive. Thai language UI.
 - `llm-docs/` files must start with a `trigger:` line
 
 ## Response Language
-Respond to user in **Thai**. All LLM-facing files (CLAUDE.md, llm-docs/, memory/) in **English**.
+Respond to user primarily in **Thai**. English only for technical terms or short inline labels where Thai is awkward. All LLM-facing files (CLAUDE.md, llm-docs/, memory/) in **English**.
 
 ## Core Rules
 - No hardcoding — use constants or config

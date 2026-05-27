@@ -20,7 +20,13 @@
       "WebFetch(domain:project-j7fjh.vercel.app)",
       "mcp__claude_ai_Supabase__execute_sql",
       "mcp__claude_ai_Supabase__apply_migration",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(pandoc --version)",
+      "Bash(npm list *)",
+      "PowerShell($word = New-Object -ComObject Word.Application -ErrorAction SilentlyContinue; if \\($word\\) { $word.Quit\\(\\); \"Word OK\" } else { \"Word not found\" })",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\patta\\\\Desktop\\\\BMS\\\\docs\\\\create-requirement-doc.ps1\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\patta\\\\Desktop\\\\BMS\\\\design_bundle\" -Recurse | ForEach-Object { $_.FullName })",
+      "PowerShell(Test-Path *)"
     ]
   }
 }
