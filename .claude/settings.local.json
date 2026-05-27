@@ -19,7 +19,8 @@
       "Bash(npx vercel *)",
       "WebFetch(domain:project-j7fjh.vercel.app)",
       "mcp__claude_ai_Supabase__execute_sql",
-      "mcp__claude_ai_Supabase__apply_migration"
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(git pull *)"
     ]
   }
 }
