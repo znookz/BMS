@@ -29,7 +29,15 @@
       "PowerShell(Test-Path *)",
       "mcp__claude_ai_Supabase__list_tables",
       "Bash(npx vite *)",
-      "Bash(rtk git *)"
+      "Bash(rtk git *)",
+      "Bash(rtk ls *)",
+      "Bash(rtk read *)",
+      "Bash(rtk npx *)",
+      "Bash(vercel whoami *)",
+      "Bash(vercel --version)",
+      "PowerShell(vercel *)",
+      "PowerShell(npx vercel --version 2>&1)",
+      "Bash(rtk npm *)"
     ]
   }
 }
