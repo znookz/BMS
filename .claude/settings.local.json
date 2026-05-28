@@ -28,7 +28,8 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\patta\\\\Desktop\\\\BMS\\\\design_bundle\" -Recurse | ForEach-Object { $_.FullName })",
       "PowerShell(Test-Path *)",
       "mcp__claude_ai_Supabase__list_tables",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(rtk git *)"
     ]
   }
 }
