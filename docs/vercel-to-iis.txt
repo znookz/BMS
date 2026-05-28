@@ -1,0 +1,61 @@
+ได้เลยครับ — ทำได้ และแก้ปัญหา Vercel ToS ได้ด้วย
+
+  หลักการ: Vite build ออกมาเป็น static files (dist/) — HTML + CSS + JS ล้วน ๆ IIS แค่ serve ไฟล์พวกนี้ ส่วน frontend จะ call
+  Supabase ผ่าน HTTPS ออก internet ตรง ๆ
+
+  ---
+  สิ่งที่ต้องทำเพิ่ม 3 อย่าง:
+
+  1. IIS ต้องติดตั้ง URL Rewrite Module
+  BMS ใช้ React Router (BrowserRouter) → ทุก path ต้อง redirect กลับ index.html
+  ต้องมีไฟล์ web.config ใน dist/
+
+  <?xml version="1.0" encoding="UTF-8"?>
+  <configuration>
+    <system.webServer>
+      <rewrite>
+        <rules>
+          <rule name="SPA" stopProcessing="true">
+            <match url=".*" />
+            <conditions logicalGrouping="MatchAll">
+              <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            </conditions>
+            <action type="Rewrite" url="/index.html" />
+          </rule>
+        </rules>
+      </rewrite>
+    </system.webServer>
+  </configuration>
+
+  2. Environment variables ต้อง bake เข้า build
+  Vite ฝัง VITE_SUPABASE_URL และ VITE_SUPABASE_ANON_KEY ตอน npm run build — ไม่ใช่ runtime
+  → build บนเครื่อง dev แล้วค่อย copy dist/ ไปวางบน IIS
+
+  3. Supabase CORS — เพิ่ม domain ของ server
+  ใน Supabase Dashboard → Project Settings → API → Allowed Origins
+  เพิ่ม IP หรือ domain ของ server ลูกค้า เช่น http://192.168.1.100 หรือ https://bms.company.com
+
+  ---
+  ข้อดีของแนวทางนี้:
+
+  ┌─────────────────────────┬──────────┬──────────────────────────────────┐
+  │         ประเด็น          │  Vercel  │        IIS (Server ลูกค้า)         │
+  ├─────────────────────────┼──────────┼──────────────────────────────────┤
+  │ ToS commercial use      │ ❌ ห้าม   │ ✅ ไม่มีปัญหา                       │
+  ├─────────────────────────┼──────────┼──────────────────────────────────┤
+  │ ค่าใช้จ่าย frontend        │ $20/เดือน │ $0                               │
+  ├─────────────────────────┼──────────┼──────────────────────────────────┤
+  │ เข้าได้จากภายในองค์กรเท่านั้น │ ไม่ได้     │ ✅ ควบคุมได้                       │
+  ├─────────────────────────┼──────────┼──────────────────────────────────┤
+  │ CI/CD                   │ Auto     │ Manual (copy dist/)              │
+  ├─────────────────────────┼──────────┼──────────────────────────────────┤
+  │ ต้องการ internet         │ ไม่จำเป็น  │ ✅ ต้องออก internet ไปหา Supabase │
+  └─────────────────────────┴──────────┴──────────────────────────────────┘
+
+  ---
+  ข้อควรระวัง:
+  - Server ลูกค้าต้องมี outbound internet ไปยัง gbkntitpkpuistmhmuuv.supabase.co (port 443)
+  - ปัญหา Supabase auto-pause ยังอยู่ถ้ายังใช้ Free plan — แนะนำอัปเกรด Pro หรือ ping DB ทุก 6 วัน
+  - ถ้าอยากให้ระบบทำงาน offline ได้ทั้งหมด (ไม่พึ่ง cloud เลย) → ต้อง self-host Supabase บน server ลูกค้าด้วย ซึ่งซับซ้อนกว่ามาก
+
+  สรุปคือ IIS + Supabase Cloud = ทำได้, ประหยัดค่า Vercel, ไม่ละเมิด ToS ครับ
